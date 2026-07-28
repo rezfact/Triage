@@ -1,6 +1,6 @@
-# Charon
+# Triage
 
-Charon is a Telegram trench agent for screening noisy Pump-token flow with overlap signals, strategy gates, LLM selection, and dry-run/confirm/live execution.
+Triage screens Pump.fun token flow with overlap signals, strategy gates, and LLM selection. Dry-run/confirm/live execution, position monitoring, Telegram-controlled. Built on Charon by @yunus-0x.
 
 # ALERT
 This Codebase is on testing-period, developer doesn't guarantee of any result.
@@ -8,16 +8,16 @@ This Codebase is on testing-period, developer doesn't guarantee of any result.
 
 ## Flow
 
-1. Charon polls the Charon signal server every `SIGNAL_POLL_MS`.
+1. Triage polls the Charon signal server every `SIGNAL_POLL_MS`.
 2. The active strategy gates source count, fee requirement, token age, market cap, holders, fees, trend quality, ATH distance, and position caps.
 3. Passing candidates are enriched with token info, Jupiter asset/holders/chart data, saved-wallet exposure, and fxtwitter narrative when available.
 4. The LLM screens up to `LLM_CANDIDATE_PICK_COUNT` recent candidates and may pick one `BUY`.
-5. Charon routes approved buys through `dry_run`, `confirm`, or `live`.
+5. Triage routes approved buys through `dry_run`, `confirm`, or `live`.
 6. Open positions are monitored every `POSITION_CHECK_MS` for TP, SL, trailing TP, max hold, and partial TP rules.
 
 ## Access
 
-Charon requires a signal server URL and API key. The signal server aggregates fee-claim, graduated, and trending data from Pump.fun in real time — without it Charon has nothing to screen.
+Triage requires a signal server URL and API key. The signal server aggregates fee-claim, graduated, and trending data from Pump.fun in real time — without it Triage has nothing to screen.
 
 To get access, contact the maintainer. Once you have credentials, set them in `.env`:
 
@@ -55,7 +55,7 @@ TELEGRAM_BOT_TOKEN=
 TELEGRAM_CHAT_ID=
 ```
 
-`TELEGRAM_CHAT_ID` is the chat or group ID where Charon sends alerts and accepts commands. Only messages from this chat are processed.
+`TELEGRAM_CHAT_ID` is the chat or group ID where Triage sends alerts and accepts commands. Only messages from this chat are processed.
 
 Signal server (required — see [Access](#access) above):
 
@@ -72,7 +72,7 @@ SOLANA_RPC_URL=https://mainnet.helius-rpc.com/?api-key=YOUR_KEY
 SOLANA_WS_URL=wss://mainnet.helius-rpc.com/?api-key=YOUR_KEY
 ```
 
-If `SOLANA_RPC_URL`/`SOLANA_WS_URL` are not set, Charon falls back to Helius mainnet URLs and requires:
+If `SOLANA_RPC_URL`/`SOLANA_WS_URL` are not set, Triage falls back to Helius mainnet URLs and requires:
 
 ```env
 HELIUS_API_KEY=
@@ -85,7 +85,7 @@ GMGN_ENABLED=true
 GMGN_API_KEY=
 ```
 
-GMGN enriches candidates with holder count, liquidity, fee data, and social links. Set `GMGN_ENABLED=false` to skip it — Charon falls back to Jupiter/server data and the status line shows `off`. GMGN has aggressive rate limits; keep `GMGN_REQUEST_DELAY_MS` at 2500+ ms.
+GMGN enriches candidates with holder count, liquidity, fee data, and social links. Set `GMGN_ENABLED=false` to skip it — Triage falls back to Jupiter/server data and the status line shows `off`. GMGN has aggressive rate limits; keep `GMGN_REQUEST_DELAY_MS` at 2500+ ms.
 
 ## LLM Config
 
@@ -128,7 +128,7 @@ JUPITER_SWAP_BASE_URL=https://api.jup.ag/swap/v2
 LIVE_MIN_SOL_RESERVE=0.02
 ```
 
-`LIVE_MIN_SOL_RESERVE` is the minimum SOL kept in the wallet after any buy. Charon refuses to execute if the balance would fall below this.
+`LIVE_MIN_SOL_RESERVE` is the minimum SOL kept in the wallet after any buy. Triage refuses to execute if the balance would fall below this.
 
 Swaps use Jupiter Ultra mode — slippage and routing are handled automatically by Jupiter. No manual slippage config needed.
 
@@ -173,7 +173,7 @@ Strategy settings are stored in SQLite and hot-read. Menu changes apply without 
 
 ## Storage
 
-Charon uses `charon.sqlite` as source of truth. It stores:
+Triage uses `charon.sqlite` as source of truth. It stores:
 
 - candidates and filter results
 - LLM decisions and batches
@@ -200,7 +200,7 @@ SQLite/menu settings are hot-read by the bot. API keys, wallet key, RPC URLs, Ju
 ## API Usage Notes
 
 - **GMGN**: Rate-limited. Keep `GMGN_REQUEST_DELAY_MS=2500` or higher. Running many instances or lowering the delay will get your key banned.
-- **Jupiter**: `fetchJupiterAsset` and `fetchJupiterHolders` are called per candidate and per position refresh cycle. At high throughput, you may hit 429s — Charon backs off automatically and retries from cache.
+- **Jupiter**: `fetchJupiterAsset` and `fetchJupiterHolders` are called per candidate and per position refresh cycle. At high throughput, you may hit 429s — Triage backs off automatically and retries from cache.
 - **Helius RPC**: Position monitoring polls every `POSITION_CHECK_MS` (default 10s). Use a paid Helius plan for live trading; free tier will throttle under load.
 - **LLM**: One API call per batch cycle (up to `LLM_CANDIDATE_PICK_COUNT` candidates per call). MiniMax M2.7 is the most cost-efficient default for this prompt shape.
 
@@ -208,3 +208,4 @@ SQLite/menu settings are hot-read by the bot. API keys, wallet key, RPC URLs, Ju
 
 - Live execution uses `@solana/web3.js` v1 (legacy SDK). It works, but a future version may migrate to `@solana/kit`.
 - The position monitor sends a Telegram alert after 3 consecutive failures on any polling loop.
+

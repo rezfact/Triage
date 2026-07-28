@@ -1,9 +1,10 @@
 import { now, firstPositiveNumber, marketCapFromGmgn, tokenPriceFromGmgn, lamToSol } from '../utils.js';
-import { activeStrategy } from '../db/settings.js';
-import { fetchGmgnTokenInfo } from '../enrichment/gmgn.js';
+import { activeStrategy, numSetting } from '../db/settings.js';
+import { fetchGmgnTokenInfo, fetchTokenSecurity } from '../enrichment/gmgn.js';
 import { fetchJupiterAsset, fetchJupiterHolders, fetchJupiterChartContext } from '../enrichment/jupiter.js';
 import { fetchSavedWalletExposure } from '../enrichment/wallets.js';
 import { fetchTwitterNarrative } from '../enrichment/twitter.js';
+import { fetchHolderAnalysis } from '../enrichment/holderAnalysis.js';
 import { gmgnLink } from '../format.js';
 
 export function buildFeeSnapshot(fee, signature) {
@@ -112,12 +113,82 @@ export function filterCandidate(candidate) {
     }
   }
 
+  // Smart money gates (from trending and security data)
+  const smartDegenCount = Number(candidate.metrics.trendingSmartDegenCount ?? candidate.trending?.smart_degen_count ?? 0);
+  const renownedCount = Number(candidate.trending?.renowned_count ?? 0);
+  const minSmartDegen = numSetting('min_smart_degen_count', 1);
+  if (minSmartDegen > 0 && smartDegenCount < minSmartDegen) {
+    failures.push(`smart money: ${smartDegenCount} < min ${minSmartDegen}`);
+  }
+  const minRenowned = numSetting('min_renowned_count', 0);
+  if (minRenowned > 0 && renownedCount < minRenowned) {
+    failures.push(`KOL holders: ${renownedCount} < min ${minRenowned}`);
+  }
+
+  // Holder analysis gates
+  if (candidate.holderAnalysis) {
+    const ha = candidate.holderAnalysis;
+
+    // Dev still holding — skip if the creator hasn't exited
+    if (numSetting('require_dev_exited', 1) && ha.dev.creatorStillHolding) {
+      failures.push(`holder: dev still holding ${(ha.dev.creatorHoldPct * 100).toFixed(2)}%`);
+    }
+
+    // Rat traders
+    const maxRat = numSetting('max_rat_trader_pct', 0.10);
+    if (maxRat > 0 && ha.risk.ratPct > maxRat) {
+      failures.push(`holder: rat traders ${(ha.risk.ratPct * 100).toFixed(1)}% > max ${(maxRat * 100).toFixed(0)}%`);
+    }
+
+    // Bundlers
+    const maxBundler = numSetting('max_bundler_pct', 0.20);
+    if (maxBundler > 0 && ha.risk.bundlerPct > maxBundler) {
+      failures.push(`holder: bundlers ${(ha.risk.bundlerPct * 100).toFixed(1)}% > max ${(maxBundler * 100).toFixed(0)}%`);
+    }
+
+    // Snipers
+    const maxSniper = numSetting('max_sniper_pct', 0.20);
+    if (maxSniper > 0 && ha.risk.sniperPct > maxSniper) {
+      failures.push(`holder: snipers ${(ha.risk.sniperPct * 100).toFixed(1)}% > max ${(maxSniper * 100).toFixed(0)}%`);
+    }
+
+    // Related wallets (sock puppets)
+    const maxRelated = numSetting('max_related_wallet_pct', 0.15);
+    if (maxRelated > 0 && ha.related.holdPct > maxRelated) {
+      failures.push(`holder: related wallets ${ha.related.walletCount} hold ${(ha.related.holdPct * 100).toFixed(1)}% > max ${(maxRelated * 100).toFixed(0)}%`);
+    }
+  }
+
+  // Security gates
+  if (candidate.security) {
+    if (candidate.security.is_honeypot === 'yes' || candidate.security.is_honeypot === 1 || candidate.security.is_honeypot === true) {
+      failures.push('security: honeypot detected');
+    }
+    const maxRug = numSetting('max_security_rug_ratio', 0.3);
+    const rugRatio = Number(candidate.security.rug_ratio ?? 0);
+    if (maxRug > 0 && Number.isFinite(rugRatio) && rugRatio > maxRug) {
+      failures.push(`security: rug ratio ${rugRatio.toFixed(2)} > max ${maxRug}`);
+    }
+    const maxBuyTax = numSetting('max_security_buy_tax', 0.10);
+    const buyTax = Number(candidate.security.buy_tax ?? 0);
+    if (maxBuyTax > 0 && Number.isFinite(buyTax) && buyTax > maxBuyTax) {
+      failures.push(`security: buy tax ${(buyTax * 100).toFixed(0)}% > max ${(maxBuyTax * 100).toFixed(0)}%`);
+    }
+    const maxSellTax = numSetting('max_security_sell_tax', 0.10);
+    const sellTax = Number(candidate.security.sell_tax ?? 0);
+    if (maxSellTax > 0 && Number.isFinite(sellTax) && sellTax > maxSellTax) {
+      failures.push(`security: sell tax ${(sellTax * 100).toFixed(0)}% > max ${(maxSellTax * 100).toFixed(0)}%`);
+    }
+  }
+
   return { passed: failures.length === 0, failures, strategy: strat.id };
 }
 
 export async function buildCandidate({ mint, fee = null, signature = null, graduatedCoin = null, trendingToken = null, route }) {
   const strat = activeStrategy();
   const gmgn = await fetchGmgnTokenInfo(mint);
+  const security = await fetchTokenSecurity(mint);
+  const holderAnalysis = await fetchHolderAnalysis(mint);
   const jupiterAsset = await fetchJupiterAsset(mint);
   const holders = await fetchJupiterHolders(mint);
   const chart = await fetchJupiterChartContext(mint);
@@ -179,6 +250,8 @@ export async function buildCandidate({ mint, fee = null, signature = null, gradu
     trending: trendingToken,
     feeClaim: fee ? buildFeeSnapshot(fee, signature) : null,
     gmgn,
+    security,
+    holderAnalysis,
     jupiterAsset,
     holders,
     chart,

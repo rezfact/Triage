@@ -207,6 +207,8 @@ export function initDb() {
   ensureColumn('dry_run_positions', 'token_amount_raw', 'TEXT');
   ensureColumn('dry_run_positions', 'strategy_id', "TEXT DEFAULT 'sniper'");
   ensureColumn('dry_run_positions', 'partial_tp_done', 'INTEGER DEFAULT 0');
+  ensureColumn('dry_run_positions', 'strategy_order_id', 'TEXT');
+  ensureColumn('dry_run_positions', 'swap_provider', "TEXT DEFAULT 'jupiter'");
   ensureColumn('decision_logs', 'strategy_id', 'TEXT');
 
   const defaults = {
@@ -240,6 +242,17 @@ export function initDb() {
     trending_min_swaps: process.env.TRENDING_MIN_SWAPS || '0',
     trending_max_rug_ratio: process.env.TRENDING_MAX_RUG_RATIO || '0.3',
     trending_max_bundler_rate: process.env.TRENDING_MAX_BUNDLER_RATE || '0.5',
+    max_security_rug_ratio: process.env.MAX_SECURITY_RUG_RATIO || '0.3',
+    max_security_buy_tax: process.env.MAX_SECURITY_BUY_TAX || '0.10',
+    max_security_sell_tax: process.env.MAX_SECURITY_SELL_TAX || '0.10',
+    min_smart_degen_count: process.env.MIN_SMART_DEGEN_COUNT || '1',
+    min_renowned_count: process.env.MIN_RENOWNED_COUNT || '0',
+    swap_provider: process.env.SWAP_PROVIDER || 'jupiter',
+    require_dev_exited: process.env.REQUIRE_DEV_EXITED || '1',
+    max_rat_trader_pct: process.env.MAX_RAT_TRADER_PCT || '0.10',
+    max_bundler_pct: process.env.MAX_BUNDLER_PCT || '0.20',
+    max_sniper_pct: process.env.MAX_SNIPER_PCT || '0.20',
+    max_related_wallet_pct: process.env.MAX_RELATED_WALLET_PCT || '0.15',
   };
   const insert = db.prepare('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)');
   for (const [key, value] of Object.entries(defaults)) insert.run(key, value);

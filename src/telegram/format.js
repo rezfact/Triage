@@ -22,7 +22,7 @@ export function candidateSummary(candidate, decision = null) {
     || candidate.chart?.windows?.find(row => row.label === 'recent_24h_5m' && row.available);
   const route = candidate.signals?.label || signalLabel(candidate.signals);
   const lines = [
-    `🛶 <b>Charon Candidate</b>`,
+    `🔍 <b>Triage Candidate</b>`,
     '',
     `Signal: <b>${escapeHtml(route)}</b>`,
     candidate.token.name || candidate.token.symbol ? `Name: <b>${escapeHtml(candidate.token.name || candidate.token.symbol)}${candidate.token.symbol && candidate.token.name ? ` (${escapeHtml(candidate.token.symbol)})` : ''}</b>` : null,
@@ -85,7 +85,7 @@ export function batchRevealSummary(batchId, rows, decision, triggerCandidateId =
   const selected = rows.find(row => row.id === Number(decision.selected_candidate_id));
   const trigger = rows.find(row => row.id === Number(triggerCandidateId));
   const lines = [
-    '🧭 <b>Charon Screening</b>',
+    '🔍 <b>Triage Screening</b>',
     '',
     `Batch: <b>#${batchId}</b> · Screened: <b>${rows.length}</b>`,
     trigger ? `Trigger: ${compactCandidateLine(trigger)}` : null,

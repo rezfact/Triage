@@ -3,7 +3,7 @@ import { formatWindow } from '../utils.js';
 
 export function learningReportText(runId, summary, lessons) {
   return [
-    '🧠 <b>Charon Learning</b>',
+    '🧠 <b>Triage Learning</b>',
     '',
     `Run: <b>#${runId}</b> · Window: <b>${formatWindow(summary.windowMs)}</b>`,
     `Closed: ${summary.positions.closed}/${summary.positions.opened} · Win rate: ${fmtPct(summary.positions.winRate)}`,

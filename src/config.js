@@ -2,8 +2,12 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-export const APP_NAME = 'Charon';
+export const APP_NAME = 'Triage';
 export const DB_PATH = process.env.DB_PATH || './charon.sqlite';
+export const TURSO_DB_URL = process.env.TURSO_DB_URL || '';
+export const TURSO_DB_TOKEN = process.env.TURSO_DB_TOKEN || '';
+export const TURSO_SYNC_ENABLED = Boolean(TURSO_DB_URL && TURSO_DB_TOKEN);
+export const TURSO_SYNC_INTERVAL_MS = Number(process.env.TURSO_SYNC_INTERVAL_MS || 60 * 60 * 1000);
 export const PUMP_PROGRAM = '6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P';
 export const PUMP_AMM = 'pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA';
 export const DISC_DIST_FEES = Buffer.from('a537817004b3ca28', 'hex');
@@ -15,6 +19,8 @@ export const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 export const TELEGRAM_TOPIC_ID = process.env.TELEGRAM_TOPIC_ID;
 export const HELIUS_API_KEY = process.env.HELIUS_API_KEY;
 export const GMGN_API_KEY = process.env.GMGN_API_KEY;
+export const GMGN_PRIVATE_KEY = process.env.GMGN_PRIVATE_KEY || '';
+export const GMGN_ALLOW_AUTOMATED_TRADES = process.env.GMGN_ALLOW_AUTOMATED_TRADES === '1';
 export const GMGN_ENABLED = process.env.GMGN_ENABLED !== 'false';
 export const JUPITER_API_KEY = process.env.JUPITER_API_KEY || '';
 export const SOLANA_PRIVATE_KEY = process.env.SOLANA_PRIVATE_KEY || process.env.PRIVATE_KEY || '';

@@ -48,25 +48,29 @@ function appendParams(url, params = {}) {
   }
 }
 
-async function gmgnFetch(pathname, { params = {} } = {}) {
+async function gmgnFetch(pathname, { params = {}, method = 'GET', body = null } = {}) {
   if (!GMGN_ENABLED) throw new Error('GMGN disabled');
   return enqueueGmgn(async () => {
     const url = new URL(`https://openapi.gmgn.ai${pathname}`);
-    appendParams(url, {
-      ...params,
-      timestamp: Math.floor(now() / 1000),
-      client_id: randomUUID(),
-    });
+    if (method === 'GET') {
+      appendParams(url, {
+        ...params,
+        timestamp: Math.floor(now() / 1000),
+        client_id: randomUUID(),
+      });
+    }
     const maxRetries = Math.max(0, Math.floor(numSetting('gmgn_max_retries', 2)));
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       await paceGmgnRequest();
-      const res = await fetch(url, {
-        method: 'GET',
+      const fetchOptions = {
+        method,
         headers: {
           'X-APIKEY': GMGN_API_KEY,
           'Content-Type': 'application/json',
         },
-      });
+      };
+      if (body) fetchOptions.body = JSON.stringify(body);
+      const res = await fetch(url, fetchOptions);
       const text = await res.text().catch(() => '');
       let payload = {};
       try {
@@ -168,6 +172,30 @@ async function fetchGmgnTokenInfo(mint, useCache = true) {
   }
 }
 
+async function fetchTokenSecurity(mint) {
+  if (!GMGN_ENABLED) return null;
+  const cacheKey = `sec:${mint}`;
+  const cached = gmgnCache.get(cacheKey);
+  if (cached && now() - cached.at < GMGN_CACHE_TTL_MS) return cached.data;
+  if (gmgnBackoffActive('token')) {
+    gmgnCache.set(cacheKey, { at: now(), data: null });
+    return null;
+  }
+
+  try {
+    const payload = await gmgnFetch('/v1/token/security', {
+      params: { chain: 'sol', address: mint },
+    });
+    const data = payload?.data?.data || payload?.data || payload;
+    gmgnCache.set(cacheKey, { at: now(), data });
+    return data;
+  } catch (err) {
+    setGmgnBackoff('token', err);
+    gmgnCache.set(cacheKey, { at: now(), data: null });
+    return null;
+  }
+}
+
 function normalizedTrendingRows(payload) {
   const rows = payload?.data?.data?.rank
     || payload?.data?.rank
@@ -181,6 +209,7 @@ function normalizedTrendingRows(payload) {
 export {
   gmgnFetch,
   fetchGmgnTokenInfo,
+  fetchTokenSecurity,
   gmgnBackoffActive,
   setGmgnBackoff,
   gmgnStatusText,

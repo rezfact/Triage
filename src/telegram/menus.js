@@ -28,7 +28,7 @@ export function menuKeyboard() {
 export function filtersText() {
   const strat = activeStrategy();
   return [
-    `⚙️ <b>Charon Filters</b> (${escapeHtml(strat.name)})`,
+    `⚙️ <b>Triage Filters</b> (${escapeHtml(strat.name)})`,
     `Min claim fee: ${fmtSol(strat.min_fee_claim_sol)} SOL`,
     `Min mcap: ${fmtUsd(strat.min_mcap_usd)}`,
     `Max mcap: ${strat.max_mcap_usd > 0 ? fmtUsd(strat.max_mcap_usd) : 'off'}`,
@@ -116,7 +116,7 @@ export function filtersKeyboard() {
 export function agentText() {
   const strat = activeStrategy();
   return [
-    '🛶 <b>Charon Agent</b>',
+    '🔍 <b>Triage Agent</b>',
     `Strategy: <b>${escapeHtml(strat.name)}</b>`,
     `Agent: <b>${boolSetting('agent_enabled', true) ? 'on' : 'off'}</b>`,
     `Mode: <b>${escapeHtml(tradingMode())}</b>`,
@@ -173,7 +173,7 @@ export function navKeyboard(rows = []) {
 }
 
 export function mainMenuText() {
-  return `🛶 <b>Charon</b>\nDry-run trench agent online.`;
+  return `🔍 <b>Triage</b>\nDry-run trench agent online.`;
 }
 
 export function walletsText() {

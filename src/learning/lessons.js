@@ -47,7 +47,7 @@ export async function generateLessons(summary) {
         {
           role: 'system',
           content: [
-            'You are Charon learning from dry-run trading evidence.',
+            'You are Triage learning from dry-run trading evidence.',
             'Return strict JSON only.',
             'Do not invent trades or outcomes.',
             'Create compact operational lessons that can improve the next screening prompt.',

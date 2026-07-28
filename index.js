@@ -1,6 +1,6 @@
-import { startCharon } from './src/app.js';
+import { startTriage } from './src/app.js';
 
-startCharon().catch((error) => {
+startTriage().catch((error) => {
   console.error(error);
   process.exit(1);
 });

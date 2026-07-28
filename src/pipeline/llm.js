@@ -44,6 +44,26 @@ export function compactCandidateForLlm(row) {
     trending: c.trending,
     graduation: c.graduation,
     holders: c.holders,
+    smartMoney: {
+      smartDegenCount: c.metrics?.trendingSmartDegenCount ?? c.trending?.smart_degen_count ?? 0,
+      renownedCount: c.trending?.renowned_count ?? 0,
+      hotLevel: c.metrics?.trendingHotLevel ?? c.trending?.hot_level ?? 0,
+    },
+    security: c.security ? {
+      honeypot: c.security.is_honeypot,
+      rugRatio: c.security.rug_ratio,
+      buyTax: c.security.buy_tax,
+      sellTax: c.security.sell_tax,
+      topHolderRate: c.security.top_10_holder_rate,
+      creatorStatus: c.security.creator_token_status,
+    } : null,
+    holderAnalysis: c.holderAnalysis ? {
+      rating: c.holderAnalysis.rating,
+      concentration: c.holderAnalysis.concentration,
+      risk: { airdropPct: c.holderAnalysis.risk.airdropPct, ratPct: c.holderAnalysis.risk.ratPct, bundlerPct: c.holderAnalysis.risk.bundlerPct, sniperPct: c.holderAnalysis.risk.sniperPct },
+      quality: { smartMoneyCount: c.holderAnalysis.quality.smartMoneyCount, kolCount: c.holderAnalysis.quality.kolCount, diamondCount: c.holderAnalysis.quality.diamondCount },
+      dev: { creatorStillHolding: c.holderAnalysis.dev.creatorStillHolding, creatorHoldPct: c.holderAnalysis.dev.creatorHoldPct },
+    } : null,
     chart: {
       purpose: 'ATH/range context only. Do not treat large 24h change as bullish/bearish momentum by itself.',
       currentNative: c.chart?.currentNative,
@@ -81,7 +101,7 @@ export async function decideCandidateBatch(rows, triggerCandidateId) {
   }
 
   const system = [
-    'You are Charon, a Solana meme coin trench analyst.',
+    'You are Triage, a Solana meme coin trench analyst.',
     'Return strict JSON only.',
     'You will receive up to 10 recently matched candidates.',
     'Pick at most one candidate to buy through the configured execution mode.',
@@ -90,6 +110,11 @@ export async function decideCandidateBatch(rows, triggerCandidateId) {
     'Use PASS if the set is weak or unsafe.',
     'Chart data is ATH/range context. Do not penalize or reward a token only because 24h change is huge; new Pump tokens often do that.',
     'Use distance from ATH/range high and top-blast risk to decide whether entry is late.',
+    'Smart money count (smartDegenCount) is the number of proven profitable wallets holding. Strong buy signal when >= 3.',
+    'KOL count (renownedCount) is social/influencer presence. Supportive but weaker than smart money.',
+    'Security data: honeypot detected tokens should never be picked. Prefer tokens with low rug_ratio and no buy/sell tax.',
+    'Holder analysis: contains holder risk assessment (rat traders, bundlers, snipers, airdrop %). Avoid tokens rated not_recommended or with rat trader % > 10%.',
+    'Dev holding: tokens where the creator still holds are higher risk. Prefer tokens where the dev has fully exited.',
     'Confidence is your conviction from 0 to 100, not probability.',
   ].join(' ');
   const user = {
