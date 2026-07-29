@@ -7,6 +7,7 @@
   "scripts": {
     "start": "node index.js",
     "check": "node --check index.js && node --check src/app.js && node --check src/config.js && node --check src/liveExecutor.js",
+    "test": "node --test tests/*.test.js",
     "sync": "node sync-to-turso.js"
   },
   "dependencies": {
