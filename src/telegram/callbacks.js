@@ -1,4 +1,4 @@
-import { bot } from './bot.js';
+import { bot, editMenuMessage } from './bot.js';
 import { TELEGRAM_CHAT_ID } from '../config.js';
 import { now } from '../utils.js';
 import { numSetting, boolSetting, setSetting, setActiveStrategy, activeStrategy, updateStrategyConfig } from '../db/settings.js';
@@ -129,34 +129,6 @@ export async function handleCallback(query) {
 
 async function answerCallback(query, text = '') {
   await bot.answerCallbackQuery(query.id, text ? { text } : undefined).catch(() => {});
-}
-
-export async function editMenuMessage(query, text, extra = {}) {
-  const chatId = query.message?.chat?.id || TELEGRAM_CHAT_ID;
-  const messageId = query.message?.message_id;
-  if (!messageId) {
-    return bot.sendMessage(chatId, text, {
-      parse_mode: 'HTML',
-      disable_web_page_preview: true,
-      ...extra,
-    });
-  }
-  try {
-    return await bot.editMessageText(text, {
-      chat_id: chatId,
-      message_id: messageId,
-      parse_mode: 'HTML',
-      disable_web_page_preview: true,
-      ...extra,
-    });
-  } catch (err) {
-    if (/message is not modified/i.test(err.message)) return null;
-    return bot.sendMessage(chatId, text, {
-      parse_mode: 'HTML',
-      disable_web_page_preview: true,
-      ...extra,
-    });
-  }
 }
 
 const STRAT_PRESETS = {

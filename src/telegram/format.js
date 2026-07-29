@@ -1,4 +1,5 @@
 import { escapeHtml, fmtPct, fmtSol, fmtUsd, short, gmgnLink, txLink, accountLink } from '../format.js';
+import { signalLabel } from '../pipeline/candidateBuilder.js';
 
 export function formatRecipients(shareholders) {
   if (!shareholders?.length) return '';
@@ -7,14 +8,6 @@ export function formatRecipients(shareholders) {
     const label = shareholders.length > 1 ? `Recipient ${index + 1}` : 'Recipient';
     return `${label}: <a href="${accountLink(holder.pubkey)}">${short(holder.pubkey)}</a>${pct}`;
   }).join('\n') + '\n';
-}
-
-export function signalLabel(signals = {}) {
-  return [
-    signals.hasFeeClaim ? 'fees' : null,
-    signals.hasGraduated ? 'graduated' : null,
-    signals.hasTrending ? 'trending' : null,
-  ].filter(Boolean).join(' + ') || signals.route || 'unknown';
 }
 
 export function candidateSummary(candidate, decision = null) {

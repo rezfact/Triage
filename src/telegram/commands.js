@@ -1,4 +1,4 @@
-import { bot } from './bot.js';
+import { bot, editMenuMessage } from './bot.js';
 import { TELEGRAM_CHAT_ID } from '../config.js';
 import { now, json } from '../utils.js';
 import { escapeHtml, fmtPct } from '../format.js';
@@ -25,7 +25,7 @@ import { sendTelegram, sendBatch, sendPositionOpen } from './send.js';
 import { candidateSummary, formatPosition } from './format.js';
 import { refreshPosition } from '../execution/positions.js';
 import { executeLiveSell } from '../execution/router.js';
-import { handleCallback, editMenuMessage } from './callbacks.js';
+import { handleCallback } from './callbacks.js';
 import { consumeNumericFilterInput } from './input.js';
 import { runLearning, sendLessons } from '../learning/commands.js';
 import { fetchWalletPnl } from '../enrichment/wallets.js';

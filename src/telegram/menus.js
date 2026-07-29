@@ -5,6 +5,7 @@ import { savedWallets } from '../enrichment/wallets.js';
 import { gmgnStatusText } from '../enrichment/gmgn.js';
 import { formatPosition } from './format.js';
 import { ENABLE_LLM, LLM_API_KEY } from '../config.js';
+import { editMenuMessage } from './bot.js';
 
 export function menuKeyboard() {
   return {
@@ -414,32 +415,3 @@ export async function sendTpSlDefaults(chatId, query = null) {
   await bot.sendMessage(chatId, agentText(), { parse_mode: 'HTML', ...keyboard });
 }
 
-async function editMenuMessage(query, text, extra = {}) {
-  const { TELEGRAM_CHAT_ID } = await import('../config.js');
-  const chatId = query.message?.chat?.id || TELEGRAM_CHAT_ID;
-  const messageId = query.message?.message_id;
-  const { bot } = await import('./bot.js');
-  if (!messageId) {
-    return bot.sendMessage(chatId, text, {
-      parse_mode: 'HTML',
-      disable_web_page_preview: true,
-      ...extra,
-    });
-  }
-  try {
-    return await bot.editMessageText(text, {
-      chat_id: chatId,
-      message_id: messageId,
-      parse_mode: 'HTML',
-      disable_web_page_preview: true,
-      ...extra,
-    });
-  } catch (err) {
-    if (/message is not modified/i.test(err.message)) return null;
-    return bot.sendMessage(chatId, text, {
-      parse_mode: 'HTML',
-      disable_web_page_preview: true,
-      ...extra,
-    });
-  }
-}
