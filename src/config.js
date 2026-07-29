@@ -3,7 +3,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 export const APP_NAME = 'Triage';
-export const DB_PATH = process.env.DB_PATH || './charon.sqlite';
+export const DB_PATH = process.env.DB_PATH || './triage.sqlite';
 export const TURSO_DB_URL = process.env.TURSO_DB_URL || '';
 export const TURSO_DB_TOKEN = process.env.TURSO_DB_TOKEN || '';
 export const TURSO_SYNC_ENABLED = Boolean(TURSO_DB_URL && TURSO_DB_TOKEN);

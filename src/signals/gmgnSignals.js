@@ -29,8 +29,7 @@ async function fetchSignals(signalTypes, limit = 50) {
       method: 'POST',
       body: {
         chain: 'sol',
-        signal_type: signalTypes,
-        limit,
+        groups: [{ signal_type: signalTypes, limit }],
       },
     });
     const data = payload?.data?.data || payload?.data || payload;

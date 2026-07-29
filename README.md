@@ -29,8 +29,8 @@ SIGNAL_SERVER_KEY=your_key_here
 ## Install
 
 ```bash
-git clone git@github.com:yunus-0x/charon.git
-cd charon
+git clone git@github.com:rezfact/Triage.git
+cd Triage
 npm install
 cp .env.example .env
 ```
@@ -44,7 +44,7 @@ npm start
 For PM2:
 
 ```bash
-pm2 start index.js --name charon
+pm2 start index.js --name triage
 pm2 save
 ```
 
@@ -173,7 +173,7 @@ Strategy settings are stored in SQLite and hot-read. Menu changes apply without 
 
 ## Storage
 
-Triage uses `charon.sqlite` as source of truth. It stores:
+Triage uses a local SQLite database (`triage.sqlite`) as source of truth. It stores:
 
 - candidates and filter results
 - LLM decisions and batches

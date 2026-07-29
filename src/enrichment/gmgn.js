@@ -52,12 +52,14 @@ async function gmgnFetch(pathname, { params = {}, method = 'GET', body = null } 
   if (!GMGN_ENABLED) throw new Error('GMGN disabled');
   return enqueueGmgn(async () => {
     const url = new URL(`https://openapi.gmgn.ai${pathname}`);
+    const authParams = {
+      timestamp: Math.floor(now() / 1000),
+      client_id: randomUUID(),
+    };
     if (method === 'GET') {
-      appendParams(url, {
-        ...params,
-        timestamp: Math.floor(now() / 1000),
-        client_id: randomUUID(),
-      });
+      appendParams(url, { ...params, ...authParams });
+    } else {
+      appendParams(url, authParams);
     }
     const maxRetries = Math.max(0, Math.floor(numSetting('gmgn_max_retries', 2)));
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
@@ -69,7 +71,11 @@ async function gmgnFetch(pathname, { params = {}, method = 'GET', body = null } 
           'Content-Type': 'application/json',
         },
       };
-      if (body) fetchOptions.body = JSON.stringify(body);
+      if (body) fetchOptions.body = JSON.stringify({
+        ...body,
+        timestamp: Math.floor(now() / 1000),
+        client_id: randomUUID(),
+      });
       const res = await fetch(url, fetchOptions);
       const text = await res.text().catch(() => '');
       let payload = {};

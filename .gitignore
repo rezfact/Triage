@@ -9,5 +9,3 @@ node_modules/
 *.log
 .DS_Store
 npm-debug.log*
-
-ARCHITECTURE.md

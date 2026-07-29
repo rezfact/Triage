@@ -15,7 +15,7 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-const DB_PATH = process.env.DB_PATH || './charon.sqlite';
+const DB_PATH = process.env.DB_PATH || './triage.sqlite';
 const TURSO_URL = process.env.TURSO_DB_URL || '';
 const TURSO_TOKEN = process.env.TURSO_DB_TOKEN || '';
 const SYNC_INTERVAL_MS = Number(process.env.TURSO_SYNC_INTERVAL_MS || 60 * 60 * 1000);
@@ -63,19 +63,15 @@ async function syncTable(tursoDb, localDb, table, tsColumn, lastSyncAt) {
   const placeholders = columns.map(() => '?').join(', ');
   const colNames = columns.map(c => `"${c}"`).join(', ');
 
-  // Use a transaction for batch insert
-  const tx = await tursoDb.transaction('write');
-  try {
-    const insertStmt = tx.prepare(
-      `INSERT OR REPLACE INTO "${table}" (${colNames}) VALUES (${placeholders})`
-    );
-    for (const row of rows) {
-      await insertStmt.run(...columns.map(c => row[c]));
-    }
-    await tx.commit();
-  } catch (err) {
-    await tx.rollback();
-    throw err;
+  // Batch insert using @libsql/client batch API
+  const statements = rows.map(row => ({
+    sql: `INSERT OR REPLACE INTO "${table}" (${colNames}) VALUES (${placeholders})`,
+    args: columns.map(c => row[c]),
+  }));
+
+  // Split into chunks of 50 to avoid oversized batches
+  for (let i = 0; i < statements.length; i += 50) {
+    await tursoDb.batch(statements.slice(i, i + 50));
   }
 
   const lastTs = Number(rows[rows.length - 1][tsColumn]) || lastSyncAt;
@@ -94,18 +90,13 @@ async function syncFullTable(tursoDb, localDb, table) {
   // Clear and re-insert for full tables
   await tursoDb.execute(`DELETE FROM "${table}"`);
 
-  const tx = await tursoDb.transaction('write');
-  try {
-    const insertStmt = tx.prepare(
-      `INSERT INTO "${table}" (${colNames}) VALUES (${placeholders})`
-    );
-    for (const row of rows) {
-      await insertStmt.run(...columns.map(c => row[c]));
-    }
-    await tx.commit();
-  } catch (err) {
-    await tx.rollback();
-    throw err;
+  const statements = rows.map(row => ({
+    sql: `INSERT INTO "${table}" (${colNames}) VALUES (${placeholders})`,
+    args: columns.map(c => row[c]),
+  }));
+
+  for (let i = 0; i < statements.length; i += 50) {
+    await tursoDb.batch(statements.slice(i, i + 50));
   }
 
   return rows.length;
@@ -143,6 +134,38 @@ async function setSyncState(tursoDb, table, lastSyncAt) {
   });
 }
 
+async function ensureTursoTables(tursoDb) {
+  // Create tables on Turso if they don't exist (mirrors local schema essentials)
+  const schema = [
+    `CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)`,
+    `CREATE TABLE IF NOT EXISTS strategies (id TEXT PRIMARY KEY, name TEXT NOT NULL, enabled INTEGER NOT NULL DEFAULT 0, config_json TEXT NOT NULL, created_at_ms INTEGER NOT NULL)`,
+    `CREATE TABLE IF NOT EXISTS saved_wallets (label TEXT PRIMARY KEY, address TEXT NOT NULL UNIQUE, created_at_ms INTEGER NOT NULL)`,
+    `CREATE TABLE IF NOT EXISTS candidates (id INTEGER PRIMARY KEY, mint TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'new', created_at_ms INTEGER NOT NULL, updated_at_ms INTEGER NOT NULL, signature TEXT, signal_key TEXT, candidate_json TEXT NOT NULL, filter_result_json TEXT NOT NULL)`,
+    `CREATE TABLE IF NOT EXISTS llm_decisions (id INTEGER PRIMARY KEY, candidate_id INTEGER NOT NULL, mint TEXT NOT NULL, created_at_ms INTEGER NOT NULL, verdict TEXT NOT NULL, confidence REAL NOT NULL, reason TEXT, risks_json TEXT NOT NULL, raw_json TEXT NOT NULL)`,
+    `CREATE TABLE IF NOT EXISTS llm_batches (id INTEGER PRIMARY KEY, created_at_ms INTEGER NOT NULL, trigger_candidate_id INTEGER, selected_candidate_id INTEGER, selected_mint TEXT, verdict TEXT NOT NULL, confidence REAL NOT NULL, reason TEXT, risks_json TEXT NOT NULL, raw_json TEXT NOT NULL, candidate_ids_json TEXT NOT NULL)`,
+    `CREATE TABLE IF NOT EXISTS dry_run_positions (id INTEGER PRIMARY KEY, candidate_id INTEGER, mint TEXT NOT NULL, symbol TEXT, status TEXT NOT NULL, opened_at_ms INTEGER NOT NULL, closed_at_ms INTEGER, size_sol REAL, entry_price REAL, entry_mcap REAL, token_amount_est REAL, high_water_price REAL, high_water_mcap REAL, tp_percent REAL NOT NULL, sl_percent REAL NOT NULL, trailing_enabled INTEGER NOT NULL, trailing_percent REAL NOT NULL, trailing_armed INTEGER NOT NULL DEFAULT 0, exit_price REAL, exit_mcap REAL, exit_reason TEXT, pnl_percent REAL, pnl_sol REAL, llm_decision_id INTEGER, execution_mode TEXT DEFAULT 'dry_run', entry_signature TEXT, exit_signature TEXT, token_amount_raw TEXT, snapshot_json TEXT NOT NULL, strategy_id TEXT, partial_tp_done INTEGER DEFAULT 0, strategy_order_id TEXT, swap_provider TEXT)`,
+    `CREATE TABLE IF NOT EXISTS dry_run_trades (id INTEGER PRIMARY KEY, position_id INTEGER NOT NULL, mint TEXT NOT NULL, side TEXT NOT NULL, at_ms INTEGER NOT NULL, price REAL, mcap REAL, size_sol REAL, token_amount_est REAL, reason TEXT, payload_json TEXT NOT NULL)`,
+    `CREATE TABLE IF NOT EXISTS trade_intents (id INTEGER PRIMARY KEY, candidate_id INTEGER NOT NULL, mint TEXT NOT NULL, mode TEXT NOT NULL, status TEXT NOT NULL, created_at_ms INTEGER NOT NULL, updated_at_ms INTEGER NOT NULL, side TEXT NOT NULL, size_sol REAL NOT NULL, confidence REAL, reason TEXT, llm_decision_id INTEGER, payload_json TEXT NOT NULL)`,
+    `CREATE TABLE IF NOT EXISTS decision_logs (id INTEGER PRIMARY KEY, at_ms INTEGER NOT NULL, batch_id INTEGER, trigger_candidate_id INTEGER, selected_candidate_id INTEGER, selected_mint TEXT, mode TEXT NOT NULL, action TEXT NOT NULL, verdict TEXT, confidence REAL, reason TEXT, guardrails_json TEXT NOT NULL, token_json TEXT NOT NULL, candidate_json TEXT NOT NULL, batch_json TEXT NOT NULL, execution_json TEXT NOT NULL, strategy_id TEXT)`,
+    `CREATE TABLE IF NOT EXISTS signal_events (id INTEGER PRIMARY KEY, mint TEXT NOT NULL, kind TEXT NOT NULL, at_ms INTEGER NOT NULL, source TEXT NOT NULL, payload_json TEXT NOT NULL)`,
+    `CREATE TABLE IF NOT EXISTS learning_runs (id INTEGER PRIMARY KEY, created_at_ms INTEGER NOT NULL, window_ms INTEGER NOT NULL, summary_json TEXT NOT NULL, lessons_json TEXT NOT NULL, raw_json TEXT NOT NULL)`,
+    `CREATE TABLE IF NOT EXISTS learning_lessons (id INTEGER PRIMARY KEY, run_id INTEGER NOT NULL, created_at_ms INTEGER NOT NULL, status TEXT NOT NULL DEFAULT 'active', lesson TEXT NOT NULL, evidence_json TEXT NOT NULL)`,
+    `CREATE TABLE IF NOT EXISTS tp_sl_rules (position_id INTEGER PRIMARY KEY, tp_percent REAL NOT NULL, sl_percent REAL NOT NULL, trailing_enabled INTEGER NOT NULL, trailing_percent REAL NOT NULL, updated_at_ms INTEGER NOT NULL)`,
+    `CREATE TABLE IF NOT EXISTS alerts (id INTEGER PRIMARY KEY, candidate_id INTEGER, mint TEXT NOT NULL, kind TEXT NOT NULL, sent_at_ms INTEGER NOT NULL, telegram_message_id INTEGER, payload_json TEXT NOT NULL)`,
+    `CREATE TABLE IF NOT EXISTS price_alerts (id INTEGER PRIMARY KEY, mint TEXT NOT NULL, strategy_id TEXT NOT NULL, alert_type TEXT NOT NULL, target_price_usd REAL, target_mcap_usd REAL, target_ath_distance_percent REAL, candidate_json TEXT NOT NULL, signals_json TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending', created_at_ms INTEGER NOT NULL, triggered_at_ms INTEGER, expires_at_ms INTEGER NOT NULL)`,
+    `CREATE TABLE IF NOT EXISTS sync_state (table_name TEXT PRIMARY KEY, last_sync_at_ms INTEGER NOT NULL, updated_at_ms INTEGER NOT NULL)`,
+  ];
+
+  for (const sql of schema) {
+    try {
+      await tursoDb.execute(sql);
+    } catch (err) {
+      log(`schema warning: ${err.message}`);
+    }
+  }
+  log('turso schema ensured');
+}
+
 async function runSync() {
   const startMs = Date.now();
   log('sync starting...');
@@ -155,6 +178,7 @@ async function runSync() {
   const tursoDb = createClient({ url: TURSO_URL, authToken: TURSO_TOKEN });
 
   try {
+    await ensureTursoTables(tursoDb);
     await syncStateTable(tursoDb);
 
     let totalSynced = 0;
