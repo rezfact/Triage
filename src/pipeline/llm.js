@@ -102,7 +102,17 @@ export async function decideCandidateBatch(rows, triggerCandidateId) {
 
   const system = [
     'You are Triage, a Solana meme coin trench analyst.',
-    'Return strict JSON only.',
+    'Return strict JSON only using this exact schema:',
+    '{',
+    '  "verdict": "BUY|WATCH|PASS",',
+    '  "selected_candidate_id": "integer when BUY, otherwise null",',
+    '  "selected_mint": "mint string when BUY, otherwise null",',
+    '  "confidence": "number 0-100",',
+    '  "reason": "short string",',
+    '  "risks": ["short strings"],',
+    '  "suggested_tp_percent": "positive number",',
+    '  "suggested_sl_percent": "negative number"',
+    '}',
     'You will receive up to 10 recently matched candidates.',
     'Pick at most one candidate to buy through the configured execution mode.',
     'Use verdict BUY only for the single best unusually strong asymmetric opportunity.',
@@ -116,20 +126,10 @@ export async function decideCandidateBatch(rows, triggerCandidateId) {
     'Holder analysis: contains holder risk assessment (rat traders, bundlers, snipers, airdrop %). Avoid tokens rated not_recommended or with rat trader % > 10%.',
     'Dev holding: tokens where the creator still holds are higher risk. Prefer tokens where the dev has fully exited.',
     'Confidence is your conviction from 0 to 100, not probability.',
-  ].join(' ');
+  ].join('\n');
   const user = {
     task: 'Pick the best dry-run buy candidate from this recent batch, or choose none.',
     recent_lessons: activeLessonsForPrompt(),
-    output_schema: {
-      verdict: 'BUY|WATCH|PASS',
-      selected_candidate_id: 'integer candidate_id when verdict is BUY, otherwise null',
-      selected_mint: 'mint string when verdict is BUY, otherwise null',
-      confidence: 'number 0-100',
-      reason: 'short string',
-      risks: ['short strings'],
-      suggested_tp_percent: 'positive number',
-      suggested_sl_percent: 'negative number',
-    },
     trigger_candidate_id: triggerCandidateId,
     candidates: rows.map(compactCandidateForLlm),
   };
